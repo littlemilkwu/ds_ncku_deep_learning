@@ -1,7 +1,9 @@
 import os
 import cv2
 import time
+import math
 import numpy as np
+import pandas as pd
 from tqdm import tqdm
 from multiprocessing import Pool, cpu_count
 from config import *
@@ -15,7 +17,7 @@ class Tensor:
 
 class Multiply_:
     def __init__(self):
-        self.gra_up = 0
+        self.gra_local = 0
 
     def __call__(self, x1:Tensor, x2:Tensor):
         self.x1 = x1
@@ -26,18 +28,21 @@ class Multiply_:
     
     def backward(self, gra_up):
         self.gra_up = gra_up
-        self.x1.grad = np.dot(self.gra_up, self.x2.value.T)
-        self.x2.grad = np.dot(self.x1.value.T, self.gra_up)
+        
+        self.x1.grad = np.dot(gra_up, self.x2.value.T)
+        self.x2.grad = np.dot(self.x1.value.T, gra_up)
+        # print(self.x1.value.T)
+        # print(gra_up[:, 13])
+        # print(self.x2.grad[1, 13])
 
         if self.x1.back != None:
             self.x1.back.backward(self.x1.grad)
         if self.x2.back != None:
             self.x2.back.backward(self.x2.grad)
-        return self.gra_up
 
 class Sum_:
     def __init__(self):
-        self.gra_up = 0
+        self.gra_local = 0
     
     def __call__(self, x1:Tensor, x2:Tensor):
         self.x1 = x1
@@ -47,78 +52,66 @@ class Sum_:
         return self.out
     
     def backward(self, gra_up):
-        self.gra_down = gra_up
-        self.x1.grad = self.gra_down
-        self.x2.grad = self.gra_down
-        # print('sum x1 shape: ', self.x1.grad.shape)
-        # print('sum x1 shape: ', self.x2.grad.shape)
-        # print(self.x1.grad)
-        # print(self.x2.grad)
+        self.gra_local = gra_up
+        self.x1.grad = self.gra_local
+        self.x2.grad = self.gra_local
         if self.x1.back != None:
-            self.x1.back.backward(self.gra_down)
+            self.x1.back.backward(self.x1.grad)
         if self.x2.back != None:
-            self.x2.back.backward(self.gra_down)
-        return self.gra_down
+            self.x2.back.backward(self.x2.grad)
 
 class Relu_:
     def __init__(self):
-        self.gra_up = 0
+        self.gra_local = 0
     
     def __call__(self, x:Tensor):
         self.x = x
-        self.out = Tensor(np.maximum(x.value, 0))
+        self.out = Tensor(np.maximum(self.x.value, 0))
         self.out.back = self
         return self.out
     
     def backward(self, gra_up):
-        self.gra_up = gra_up
-        self.x.grad = (self.gra_up > 0).astype(float)
+        self.x.grad = np.float64(gra_up > 0)
         
         if self.x.back != None:
             self.x.back.backward(self.x.grad)
-        return self.gra_up
     
 class CrossEntropy_:
     def __init__(self):
-        self.gra_up = 1
+        self.gra_local = 1
 
     def __call__(self, x:Tensor, y):
         self.x = x
         self.y = y
         # softmax
-        print(np.exp(x.value))
-        self.s = (np.exp(x.value) / np.exp(x.value).sum(axis=1))
-        self.s = self.s.T
+        self.s = (np.exp(x.value).T / np.exp(x.value).sum(axis=1)).T
 
         # cross-entropy
         self.out = -np.sum(np.log(self.s)*y)
         return self.out
     
     def backward(self):
-        self.gra_down = self.s - self.y
-        # print('Cross: ')
-        # print(self.gra_down)
+        self.gra_local = self.s - self.y
+        self.x.grad = self.gra_local
         if self.x.back != None:
-            self.x.back.backward(self.gra_down)
-        return self.gra_down
+            self.x.back.backward(self.x.grad)
+        return self.gra_local
 
 class ComGraph:
     def __init__(self):
-        self.W1 = Tensor(np.ones(shape=(1344, 256)) * 0.001)
-        self.b1 = Tensor(np.ones(shape=(256, )) * 0.001)
+        limit = np.sqrt(1 / (1344 * 4))
+        self.W1 = Tensor(np.random.uniform(low=-limit, high=limit, size=(1344, 256)))
+        self.b1 = Tensor(np.random.uniform(low=-limit, high=limit, size=(256, )))
         self.mult1 = Multiply_()
         self.sum1 = Sum_()
         self.relu1 = Relu_()
 
-        self.W2 = Tensor(np.ones(shape=(256, 50)) * 0.001)
-        self.b2 = Tensor(np.ones(shape=(50, )) * 0.001)
+        self.W2 = Tensor(np.random.uniform(low=-limit, high=limit, size=(256, 50)))
+        self.b2 = Tensor(np.random.uniform(low=-limit, high=limit, size=(50, )))
         self.mult2 = Multiply_()
         self.sum2 = Sum_()
 
-        self.loss_fn = CrossEntropy_()
-
     def __call__(self, X):
-        
         self.h1 = self.mult1(X, self.W1) # (128, 256)
         self.h2 = self.sum1(self.h1, self.b1)
         self.h3 = self.relu1(self.h2)
@@ -126,31 +119,71 @@ class ComGraph:
         self.out = self.sum2(self.h4, self.b2)
         # print('forward out: ', self.out.value)
         return self.out
+    
+    def step(self, lr):
+        self.W1.value = self.W1.value - self.W1.grad * lr
+        self.W2.value = self.W2.value - self.W2.grad * lr
+        self.b1.value = self.b1.value - self.b1.grad * lr
+        self.b2.value = self.b2.value - self.b2.grad * lr
+        pass
 
-    def calc_loss(self, y):
-        # loss
-        self.loss = self.loss_fn(self.out, y)
-        print('loss: ', self.loss)
-        return self.loss
-
-    def backward(self):
-        up_grad = self.loss_fn.backward()
 
 def main():
     # train_X, train_y = read_pixel_data(part='val')
-    train_X, train_y = read_img_feature_data(part='val')
-    train_X, train_y = train_X[:10], train_y[:10]
+    train_X, train_y = read_img_feature_data(part='train')
+    val_X, val_y = read_img_feature_data(part='val')
 
     # preprocessing
+    train_X, train_y = union_shuffle(train_X, train_y)
     train_y = one_hot_encoding(train_y)
-    train_X = Tensor(train_X)
+    val_y = one_hot_encoding(val_y)
 
+    val_X = Tensor(val_X)
+
+    # build model
     model = ComGraph()
-    y_pred = model(train_X)
-    loss = model.calc_loss(train_y)
-    model.backward()
-    # print(model.W2.grad)
-    return
+    loss_fn = CrossEntropy_()
+    
+    ls_loss = train_loop(model, train_X, train_y, val_X, val_y, loss_fn)
+
+    pd.DataFrame(ls_loss, columns=['train_loss', 'train_acc', 'val_loss', 'val_acc'])\
+        .to_csv("output/ComGraph_result.csv", index=False)
+    return 
+
+def train_loop(model, train_X, train_y, val_X, val_y, loss_fn):
+    batch_cnt = train_X.shape[0] // BATCH_SIZE
+    ls_loss = []
+    for e in range(1, EPOCHS + 1):
+        bar = tqdm(range(batch_cnt), desc=f'[Epochs {e:2d}]')
+        epoch_loss = 0
+        epoch_acc = 0
+        for batch_i in bar:
+            X = train_X[batch_i * BATCH_SIZE: (batch_i + 1) * BATCH_SIZE]
+            y = train_y[batch_i * BATCH_SIZE: (batch_i + 1) * BATCH_SIZE]
+            X = Tensor(X)
+            y_pred = model(X)
+            loss = loss_fn(y_pred, y) / BATCH_SIZE
+            acc = (y_pred.value.argmax(axis=1) == y.argmax(axis=1)).sum() / BATCH_SIZE
+            bar.set_postfix(loss=loss, acc=acc)
+            epoch_loss += loss
+            epoch_acc += acc
+
+            loss_fn.backward()
+            model.step(LEARNING_RATE)
+
+            if batch_i == batch_cnt - 1:
+                # validate
+                val_y_pred = model(val_X)
+                val_loss = loss_fn(val_y_pred, val_y) / len(val_y)
+                val_acc = (val_y_pred.value.argmax(axis=1) == val_y.argmax(axis=1)).sum() / len(val_y)
+                bar.set_postfix(loss=loss, acc=acc, val_loss=val_loss, val_acc=val_acc)
+
+        epoch_loss /= batch_cnt
+        epoch_acc /= batch_cnt
+        ls_loss.append([epoch_loss, epoch_acc, val_loss, val_acc])
+    return ls_loss
+        
+
 
 if __name__ == "__main__":
     main()

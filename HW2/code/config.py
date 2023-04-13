@@ -8,7 +8,8 @@ CPU_USED = 100
 RS = np.random.RandomState(11)
 
 # model hyperparameters
-BATCH_SIZE = 128
+BATCH_SIZE = 450
 LEARNING_RATE = 1e-3
+EPOCHS = 300
 
 
