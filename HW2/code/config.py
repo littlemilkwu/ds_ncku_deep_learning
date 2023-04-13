@@ -4,4 +4,11 @@ IMG_WIDTH = 256
 IMG_HEIGHT = 256
 IMG_CHA = 3
 CPU_USED = 100
+
 RS = np.random.RandomState(11)
+
+# model hyperparameters
+BATCH_SIZE = 128
+LEARNING_RATE = 1e-3
+
+

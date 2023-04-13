@@ -17,7 +17,7 @@ def img2np(img_path):
     img = img[None, :]
     return img
 
-def read_data(part="train"):
+def read_pixel_data(part="train"):
     with open(f"{DATA_PATH}/{part}.txt") as f:
         lines = f.readlines()
         X, y = [], []
@@ -31,3 +31,12 @@ def read_data(part="train"):
         X = np.concatenate(pool_output, axis=0)
         y = np.array(y, dtype=int)
     return (X, y)
+
+def read_img_feature_data(part='train'):
+    data = np.load(f"{DATA_PATH}/../code/output/{part}_features.npz")
+    return data['X'], data['y']
+
+def one_hot_encoding(y):
+    y_one = np.zeros((y.size, y.max() + 1))
+    y_one[np.arange(y.size), y] = 1
+    return y_one
