@@ -31,9 +31,6 @@ class Multiply_:
         
         self.x1.grad = np.dot(gra_up, self.x2.value.T)
         self.x2.grad = np.dot(self.x1.value.T, gra_up)
-        # print(self.x1.value.T)
-        # print(gra_up[:, 13])
-        # print(self.x2.grad[1, 13])
 
         if self.x1.back != None:
             self.x1.back.backward(self.x1.grad)
@@ -52,9 +49,9 @@ class Sum_:
         return self.out
     
     def backward(self, gra_up):
-        self.gra_local = gra_up
-        self.x1.grad = self.gra_local
-        self.x2.grad = self.gra_local
+        self.x1.grad = gra_up
+        self.x2.grad = gra_up.mean(axis=0)
+        # print('sum grad: ', self.x2.grad)
         if self.x1.back != None:
             self.x1.back.backward(self.x1.grad)
         if self.x2.back != None:
@@ -71,7 +68,7 @@ class Relu_:
         return self.out
     
     def backward(self, gra_up):
-        self.x.grad = np.float64(gra_up > 0)
+        self.x.grad = np.float64(gra_up > 0) * gra_up
         
         if self.x.back != None:
             self.x.back.backward(self.x.grad)
@@ -80,11 +77,11 @@ class CrossEntropy_:
     def __init__(self):
         self.gra_local = 1
 
-    def __call__(self, x:Tensor, y):
-        self.x = x
+    def __call__(self, y_pred:Tensor, y):
+        self.y_pred = y_pred
         self.y = y
         # softmax
-        self.s = (np.exp(x.value).T / np.exp(x.value).sum(axis=1)).T
+        self.s = (np.exp(y_pred.value).T / np.exp(y_pred.value).sum(axis=1)).T
 
         # cross-entropy
         self.out = -np.sum(np.log(self.s)*y)
@@ -92,22 +89,22 @@ class CrossEntropy_:
     
     def backward(self):
         self.gra_local = self.s - self.y
-        self.x.grad = self.gra_local
-        if self.x.back != None:
-            self.x.back.backward(self.x.grad)
+        self.y_pred.grad = self.gra_local
+        if self.y_pred.back != None:
+            self.y_pred.back.backward(self.y_pred.grad)
         return self.gra_local
 
 class ComGraph:
     def __init__(self):
-        limit = np.sqrt(1 / (1344 * 4))
-        self.W1 = Tensor(np.random.uniform(low=-limit, high=limit, size=(1344, 256)))
-        self.b1 = Tensor(np.random.uniform(low=-limit, high=limit, size=(256, )))
+        limit = np.sqrt(1 / (INPUT_DIM * 3))
+        self.W1 = Tensor(np.random.uniform(low=-limit, high=limit, size=(INPUT_DIM, HIDDEN_DIM)))
+        self.b1 = Tensor(np.random.uniform(low=-limit, high=limit, size=(HIDDEN_DIM, )))
         self.mult1 = Multiply_()
         self.sum1 = Sum_()
         self.relu1 = Relu_()
 
-        self.W2 = Tensor(np.random.uniform(low=-limit, high=limit, size=(256, 50)))
-        self.b2 = Tensor(np.random.uniform(low=-limit, high=limit, size=(50, )))
+        self.W2 = Tensor(np.random.uniform(low=-limit, high=limit, size=(HIDDEN_DIM, OUTPUT_DIM)))
+        self.b2 = Tensor(np.random.uniform(low=-limit, high=limit, size=(OUTPUT_DIM, )))
         self.mult2 = Multiply_()
         self.sum2 = Sum_()
 
@@ -127,28 +124,6 @@ class ComGraph:
         self.b2.value = self.b2.value - self.b2.grad * lr
         pass
 
-
-def main():
-    # train_X, train_y = read_pixel_data(part='val')
-    train_X, train_y = read_img_feature_data(part='train')
-    val_X, val_y = read_img_feature_data(part='val')
-
-    # preprocessing
-    train_X, train_y = union_shuffle(train_X, train_y)
-    train_y = one_hot_encoding(train_y)
-    val_y = one_hot_encoding(val_y)
-
-    val_X = Tensor(val_X)
-
-    # build model
-    model = ComGraph()
-    loss_fn = CrossEntropy_()
-    
-    ls_loss = train_loop(model, train_X, train_y, val_X, val_y, loss_fn)
-
-    pd.DataFrame(ls_loss, columns=['train_loss', 'train_acc', 'val_loss', 'val_acc'])\
-        .to_csv("output/ComGraph_result.csv", index=False)
-    return 
 
 def train_loop(model, train_X, train_y, val_X, val_y, loss_fn):
     batch_cnt = train_X.shape[0] // BATCH_SIZE
@@ -170,19 +145,40 @@ def train_loop(model, train_X, train_y, val_X, val_y, loss_fn):
 
             loss_fn.backward()
             model.step(LEARNING_RATE)
-
+            
+            
+            print(model.h1.value[:10, :3])
+            
             if batch_i == batch_cnt - 1:
                 # validate
                 val_y_pred = model(val_X)
                 val_loss = loss_fn(val_y_pred, val_y) / len(val_y)
                 val_acc = (val_y_pred.value.argmax(axis=1) == val_y.argmax(axis=1)).sum() / len(val_y)
                 bar.set_postfix(loss=loss, acc=acc, val_loss=val_loss, val_acc=val_acc)
-
         epoch_loss /= batch_cnt
         epoch_acc /= batch_cnt
         ls_loss.append([epoch_loss, epoch_acc, val_loss, val_acc])
     return ls_loss
-        
+
+def main():
+    # train_X, train_y = read_pixel_data(part='val')
+    train_X, train_y = read_img_feature_data(part='val')
+    val_X, val_y = read_img_feature_data(part='val')
+
+    # preprocessing
+    train_X, train_y = union_shuffle(train_X, train_y)
+    train_y = one_hot_encoding(train_y)
+    val_y = one_hot_encoding(val_y)
+    val_X = Tensor(val_X)
+
+    # build model
+    model = ComGraph()
+    loss_fn = CrossEntropy_()
+    ls_loss = train_loop(model, train_X, train_y, val_X, val_y, loss_fn)
+
+    pd.DataFrame(ls_loss, columns=['train_loss', 'train_acc', 'val_loss', 'val_acc'])\
+        .to_csv("output/ComGraph_result.csv", index=False)
+    return 
 
 
 if __name__ == "__main__":
