@@ -3,6 +3,7 @@ import pickle
 import random
 import cv2
 import numpy as np
+import pandas as pd
 from urllib import request
 from tqdm import tqdm
 import matplotlib.pyplot as plt
@@ -43,6 +44,15 @@ def one_hot_encoding(y):
     y_one = np.zeros((y.size, y.max() + 1))
     y_one[np.arange(y.size), y] = 1
     return y_one
+
+def save_loss(ls_loss):
+    pd.DataFrame(ls_loss, columns=['train_loss', 'train_acc', 'val_loss', 'val_acc'])\
+        .to_csv('output/lenet_origin_result.csv', index=False)
+
+def save_model(model):
+    weights = model.get_params()
+    with open("output/best_weights.pkl","wb") as f:
+        pickle.dump(weights, f)
 
 # above by myself
 

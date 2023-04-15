@@ -22,6 +22,7 @@ def preprocessing():
 
 def train_loop(model, train_X, train_y, val_X, val_y, loss_fn, optim):
     ls_loss = []
+    best_val_loss = 1e10
     for e in range(EPOCHS):
         batch_cnt = train_X.shape[0] // BATCH_SIZE
         bar = tqdm(range(batch_cnt), desc=f'[Epoch {e}] ')
@@ -42,14 +43,14 @@ def train_loop(model, train_X, train_y, val_X, val_y, loss_fn, optim):
                 val_y_pred = model.forward(val_X)
                 val_loss, dout = loss_fn.get(val_y_pred, val_y)
                 val_acc = (val_y_pred.argmax(axis=1) == val_y.argmax(axis=1)).sum() / val_y.shape[0]
+                bar.set_postfix(train_loss=train_loss/batch_cnt, train_acc=train_acc/batch_cnt, val_loss=val_loss, val_acc=val_acc)
+                if val_loss < best_val_loss:
+                    best_val_loss = val_loss
+                    save_model(model)
         train_loss /= batch_cnt
         train_acc /= batch_cnt
         ls_loss.append([train_loss, train_acc, val_loss, val_acc])
     return ls_loss
-
-def save_loss(ls_loss):
-    pd.DataFrame(ls_loss, columns=['train_loss', 'train_acc', 'val_loss', 'val_acc'])\
-        .to_csv('output/lenet_origin_result.csv', index=False)
 
 def main():
     s_time = time.time()
@@ -59,6 +60,7 @@ def main():
     loss_fn = CrossEntropyLoss()
     ls_loss = train_loop(model, train_X, train_y, val_X, val_y, loss_fn, optim)
     save_loss(ls_loss)
+    save_model(model)
 
     print(f'total spent: {round(time.time() - s_time, 1)}')
     # time_start = time.time()

@@ -67,6 +67,7 @@ class Sigmoid():
 
     def _backward(self, dout):
         X = self.cache
+        X = self._forward(X)
         dX = dout*X*(1-X)
         return dX
 
@@ -229,13 +230,19 @@ class MaxPool():
         H_ = int(float(H)/F)
         Y = np.zeros((N,Cin,W_,H_))
         M = np.zeros(X.shape) # mask
-        for n in range(N):
-            for cin in range(Cin):
-                for w_ in range(W_):
-                    for h_ in range(H_):
-                        Y[n,cin,w_,h_] = np.max(X[n,cin,F*w_:F*(w_+1),F*h_:F*(h_+1)])
-                        i,j = np.unravel_index(X[n,cin,F*w_:F*(w_+1),F*h_:F*(h_+1)].argmax(), (F,F))
-                        M[n,cin,F*w_+i,F*h_+j] = 1
+        # for n in range(N):
+        #     for cin in range(Cin):
+        #         for w_ in range(W_):
+        #             for h_ in range(H_):
+        #                 Y[n,cin,w_,h_] = np.max(X[n,cin,F*w_:F*(w_+1),F*h_:F*(h_+1)])
+        #                 i,j = np.unravel_index(X[n,cin,F*w_:F*(w_+1),F*h_:F*(h_+1)].argmax(), (F,F))
+        #                 M[n,cin,F*w_+i,F*h_+j] = 1
+        for cin in range(Cin):
+            for w_ in range(W_):
+                for h_ in range(H_):
+                    Y[:,cin,w_,h_] = np.max(X[:,cin,F*w_:F*(w_+1),F*h_:F*(h_+1)], axis=(1, 2))
+                    i,j = np.unravel_index(X[:,cin,F*w_:F*(w_+1),F*h_:F*(h_+1)].reshape(N, -1).argmax(axis=1), (F,F))
+                    M[:,cin,F*w_+i,F*h_+j] = 1
         self.cache = M
         return Y
 
@@ -245,10 +252,13 @@ class MaxPool():
         dout = np.array(dout)
         #print("dout.shape: %s, M.shape: %s" % (dout.shape, M.shape))
         dX = np.zeros(M.shape)
-        for n in range(N):
-            for c in range(Cin):
-                #print("(n,c): (%s,%s)" % (n,c))
-                dX[n,c,:,:] = dout[n,c,:,:].repeat(2, axis=0).repeat(2, axis=1)
+        # for n in range(N):
+        #     for c in range(Cin):
+        #         #print("(n,c): (%s,%s)" % (n,c))
+        #         dX[n,c,:,:] = dout[n,c,:,:].repeat(2, axis=0).repeat(2, axis=1)
+        for c in range(Cin):
+            #print("(n,c): (%s,%s)" % (n,c))
+            dX[:,c,:,:] = dout[:,c,:,:].repeat(2, axis=1).repeat(2, axis=2)
         return dX*M
 
 def NLLLoss(Y_pred, Y_true):
@@ -395,15 +405,15 @@ class LeNet5(Net):
 
     def __init__(self):
         self.conv1 = Conv(3, 6, F=5)
-        self.ReLU1 = ReLU()
+        self.Sig1 = Sigmoid()
         self.pool1 = MaxPool(2, 2)
         self.conv2 = Conv(6, 16, F=5)
-        self.ReLU2 = ReLU()
+        self.Sig2 = Sigmoid()
         self.pool2 = MaxPool(2, 2)
         self.FC1 = FC(16 * 5 * 5, 120)
-        self.ReLU3 = ReLU()
+        self.Sig3 = Sigmoid()
         self.FC2 = FC(120, 84)
-        self.ReLU4 = ReLU()
+        self.Sig4 = Sigmoid()
         self.FC3 = FC(84, 50)
         self.Softmax = Softmax()
 
@@ -411,17 +421,17 @@ class LeNet5(Net):
 
     def forward(self, X):
         h1 = self.conv1._forward(X)
-        a1 = self.ReLU1._forward(h1)
+        a1 = self.Sig1._forward(h1)
         p1 = self.pool1._forward(a1)
         h2 = self.conv2._forward(p1)
-        a2 = self.ReLU2._forward(h2)
+        a2 = self.Sig2._forward(h2)
         p2 = self.pool2._forward(a2)
         self.p2_shape = p2.shape
         fl = p2.reshape(X.shape[0], -1) # Flatten
         h3 = self.FC1._forward(fl)
-        a3 = self.ReLU3._forward(h3)
+        a3 = self.Sig3._forward(h3)
         h4 = self.FC2._forward(a3)
-        a5 = self.ReLU4._forward(h4)
+        a5 = self.Sig4._forward(h4)
         h5 = self.FC3._forward(a5)
         a5 = self.Softmax._forward(h5)
         return a5
@@ -429,16 +439,16 @@ class LeNet5(Net):
     def backward(self, dout):
         #dout = self.Softmax._backward(dout)
         dout = self.FC3._backward(dout)
-        dout = self.ReLU4._backward(dout)
+        dout = self.Sig4._backward(dout)
         dout = self.FC2._backward(dout)
-        dout = self.ReLU3._backward(dout)
+        dout = self.Sig3._backward(dout)
         dout = self.FC1._backward(dout)
         dout = dout.reshape(self.p2_shape) # reshape
         dout = self.pool2._backward(dout)
-        dout = self.ReLU2._backward(dout)
+        dout = self.Sig2._backward(dout)
         dout = self.conv2._backward(dout)
         dout = self.pool1._backward(dout)
-        dout = self.ReLU1._backward(dout)
+        dout = self.Sig1._backward(dout)
         dout = self.conv1._backward(dout)
 
     def get_params(self):
@@ -446,6 +456,64 @@ class LeNet5(Net):
 
     def set_params(self, params):
         [self.conv1.W, self.conv1.b, self.conv2.W, self.conv2.b, self.FC1.W, self.FC1.b, self.FC2.W, self.FC2.b, self.FC3.W, self.FC3.b] = params
+
+class LeNet5Imp(Net):
+    # LeNet5 Improved
+
+    def __init__(self):
+        self.conv1 = Conv(3, 6, F=3)
+        self.Sig1 = Sigmoid()
+        self.pool1 = MaxPool(2, 2)
+        self.conv2 = Conv(6, 16, F=3)
+        self.Sig2 = Sigmoid()
+        self.pool2 = MaxPool(2, 2)
+        self.FC1 = FC(16 * 6 * 6, 120)
+        self.Sig3 = Sigmoid()
+        self.FC2 = FC(120, 84)
+        self.Sig4 = Sigmoid()
+        self.FC3 = FC(84, 50)
+        self.Softmax = Softmax()
+
+        self.p2_shape = None
+
+    def forward(self, X):
+        h1 = self.conv1._forward(X)
+        a1 = self.Sig1._forward(h1)
+        p1 = self.pool1._forward(a1)
+        h2 = self.conv2._forward(p1)
+        a2 = self.Sig2._forward(h2)
+        p2 = self.pool2._forward(a2)
+        self.p2_shape = p2.shape
+        fl = p2.reshape(X.shape[0], -1) # Flatten
+        h3 = self.FC1._forward(fl)
+        a3 = self.Sig3._forward(h3)
+        h4 = self.FC2._forward(a3)
+        a5 = self.Sig4._forward(h4)
+        h5 = self.FC3._forward(a5)
+        a5 = self.Softmax._forward(h5)
+        return a5
+
+    def backward(self, dout):
+        #dout = self.Softmax._backward(dout)
+        dout = self.FC3._backward(dout)
+        dout = self.Sig4._backward(dout)
+        dout = self.FC2._backward(dout)
+        dout = self.Sig3._backward(dout)
+        dout = self.FC1._backward(dout)
+        dout = dout.reshape(self.p2_shape) # reshape
+        dout = self.pool2._backward(dout)
+        dout = self.Sig2._backward(dout)
+        dout = self.conv2._backward(dout)
+        dout = self.pool1._backward(dout)
+        dout = self.Sig1._backward(dout)
+        dout = self.conv1._backward(dout)
+
+    def get_params(self):
+        return [self.conv1.W, self.conv1.b, self.conv2.W, self.conv2.b, self.FC1.W, self.FC1.b, self.FC2.W, self.FC2.b, self.FC3.W, self.FC3.b]
+
+    def set_params(self, params):
+        [self.conv1.W, self.conv1.b, self.conv2.W, self.conv2.b, self.FC1.W, self.FC1.b, self.FC2.W, self.FC2.b, self.FC3.W, self.FC3.b] = params
+
 
 class SGD():
     def __init__(self, params, lr=0.001, reg=0):
