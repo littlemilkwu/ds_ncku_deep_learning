@@ -16,7 +16,7 @@ def read_img_feature_data(part='train'):
     data = np.load(f"{DATA_PATH}/../code/output/{part}_features.npz")
     return data['X'], data['y']
 
-def one_hot_encoding(y):
-    y_one = np.zeros((y.size, y.max() + 1))
+def one_hot_encoding(y, class_num):
+    y_one = np.zeros((y.size, class_num))
     y_one[np.arange(y.size), y] = 1
     return y_one

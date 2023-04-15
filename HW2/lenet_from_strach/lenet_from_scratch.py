@@ -573,8 +573,6 @@ def main():
 
     draw_losses(losses)
 
-
-
     # TRAIN SET ACC
     Y_pred = model.forward(X_train)
     result = np.argmax(Y_pred, axis=1) - Y_train

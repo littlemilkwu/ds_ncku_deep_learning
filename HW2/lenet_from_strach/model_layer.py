@@ -71,6 +71,27 @@ class Sigmoid():
         dX = dout*X*(1-X)
         return dX
 
+class SigmoidImp():
+    """
+    Sigmoid activation layer
+    """
+    def __init__(self):
+        self.cache = None
+
+    def _forward(self, X):
+        X = np.longdouble(X)
+        self.cache = X
+        self.sig_cache = self.origin_sig(X)
+        return self.sig_cache * X
+    
+    def origin_sig(self, X):
+        return (1 / (1 + np.exp(-X)))
+
+    def _backward(self, dout):
+        sig_dev = (self.sig_cache)*(1-self.sig_cache)
+        dX = dout * (self.sig_cache + sig_dev*self.cache)
+        return dX
+
 class tanh():
     """
     tanh activation layer
@@ -282,8 +303,11 @@ class CrossEntropyLoss():
 
     def get(self, Y_pred, Y_true):
         N = Y_pred.shape[0]
-        softmax = Softmax()
-        prob = softmax._forward(Y_pred)
+
+        # softmax = Softmax()
+        # prob = softmax._forward(Y_pred) # double softmax
+        
+        prob = Y_pred
         loss = NLLLoss(prob, Y_true)
         Y_serial = np.argmax(Y_true, axis=1)
         dout = prob.copy()
@@ -461,29 +485,36 @@ class LeNet5Imp(Net):
     # LeNet5 Improved
 
     def __init__(self):
-        self.conv1 = Conv(3, 6, F=3)
-        self.Sig1 = Sigmoid()
+        self.conv1_1 = Conv(3, 6, F=3)
+        self.Sig1_1 = SigmoidImp()
+        self.conv1_2 = Conv(6, 6, F=3)
+        self.Sig1_2 = SigmoidImp()
         self.pool1 = MaxPool(2, 2)
         self.conv2 = Conv(6, 16, F=3)
-        self.Sig2 = Sigmoid()
+        self.Sig2 = SigmoidImp()
         self.pool2 = MaxPool(2, 2)
+
         self.FC1 = FC(16 * 6 * 6, 120)
-        self.Sig3 = Sigmoid()
+        self.Sig3 = SigmoidImp()
         self.FC2 = FC(120, 84)
-        self.Sig4 = Sigmoid()
+        self.Sig4 = SigmoidImp()
         self.FC3 = FC(84, 50)
         self.Softmax = Softmax()
 
         self.p2_shape = None
 
     def forward(self, X):
-        h1 = self.conv1._forward(X)
-        a1 = self.Sig1._forward(h1)
-        p1 = self.pool1._forward(a1)
+        h1_1 = self.conv1_1._forward(X)
+        a1_1 = self.Sig1_1._forward(h1_1)
+        h1_2 = self.conv1_2._forward(a1_1)
+        a1_2 = self.Sig1_2._forward(h1_2)
+
+        p1 = self.pool1._forward(a1_2)
         h2 = self.conv2._forward(p1)
         a2 = self.Sig2._forward(h2)
         p2 = self.pool2._forward(a2)
         self.p2_shape = p2.shape
+
         fl = p2.reshape(X.shape[0], -1) # Flatten
         h3 = self.FC1._forward(fl)
         a3 = self.Sig3._forward(h3)
@@ -505,14 +536,16 @@ class LeNet5Imp(Net):
         dout = self.Sig2._backward(dout)
         dout = self.conv2._backward(dout)
         dout = self.pool1._backward(dout)
-        dout = self.Sig1._backward(dout)
-        dout = self.conv1._backward(dout)
+        dout = self.Sig1_2._backward(dout)
+        dout = self.conv1_2._backward(dout)
+        dout = self.Sig1_1._backward(dout)
+        dout = self.conv1_1._backward(dout)
 
     def get_params(self):
-        return [self.conv1.W, self.conv1.b, self.conv2.W, self.conv2.b, self.FC1.W, self.FC1.b, self.FC2.W, self.FC2.b, self.FC3.W, self.FC3.b]
+        return [self.conv1_1.W, self.conv1_1.b, self.conv1_2.W, self.conv1_2.b, self.conv2.W, self.conv2.b, self.FC1.W, self.FC1.b, self.FC2.W, self.FC2.b, self.FC3.W, self.FC3.b]
 
     def set_params(self, params):
-        [self.conv1.W, self.conv1.b, self.conv2.W, self.conv2.b, self.FC1.W, self.FC1.b, self.FC2.W, self.FC2.b, self.FC3.W, self.FC3.b] = params
+        [self.conv1_1.W, self.conv1_1.b, self.conv1_2.W, self.conv1_2.b, self.conv2.W, self.conv2.b, self.FC1.W, self.FC1.b, self.FC2.W, self.FC2.b, self.FC3.W, self.FC3.b] = params
 
 
 class SGD():

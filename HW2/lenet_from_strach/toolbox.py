@@ -9,7 +9,6 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from multiprocessing import Pool, cpu_count
 
-
 from config import *
 
 def union_shuffle(X, y):
@@ -40,8 +39,8 @@ def read_pixel_data(part="train"):
         y = np.array(y, dtype=int)
     return (X, y)
 
-def one_hot_encoding(y):
-    y_one = np.zeros((y.size, y.max() + 1))
+def one_hot_encoding(y, class_num):
+    y_one = np.zeros((y.size, class_num))
     y_one[np.arange(y.size), y] = 1
     return y_one
 
@@ -51,8 +50,27 @@ def save_loss(ls_loss, dict_hyper:dict):
 
 def save_model(model, dict_hyper:dict):
     weights = model.get_params()
-    with open(f"output/lenet_{dict_hyper['v']}_e{dict_hyper['e']}_b{dict_hyper['b']}_weights.pkl","wb") as f:
+    with open(f"model_weights/lenet_{dict_hyper['v']}_e{dict_hyper['e']}_b{dict_hyper['b']}_weights.pkl","wb") as f:
         pickle.dump(weights, f)
+
+def draw_loss_n_save(ls_loss, dict_hyper):
+    train_loss, train_acc, val_loss, val_acc = zip(*ls_loss)
+    epochs = list(range(1, len(train_loss) + 1) )
+    fig, ax = plt.subplots(2, 1, figsize=(10, 6))
+
+    fig.suptitle(f"{dict_hyper['v']} lenet e{dict_hyper['e']} b{dict_hyper['b']}")
+    ax[0].plot(epochs, train_loss, label='train_loss')
+    ax[0].plot(epochs, val_loss, label='val_loss')
+    ax[0].set_xticks(epochs)
+    ax[0].legend()
+
+    ax[1].plot(epochs, train_acc, label='train_acc')
+    ax[1].plot(epochs, val_acc, label='val_acc')
+    ax[1].set_xticks(epochs)
+    ax[1].legend()
+    ax[1].set_xlabel('Epochs')
+    plt.tight_layout()
+    fig.savefig('test.png')
 
 # above by myself
 

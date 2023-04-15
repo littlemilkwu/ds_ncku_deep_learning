@@ -12,13 +12,16 @@ from toolbox import *
 
 parser = ArgumentParser()
 parser.add_argument("-v", "--version", default='origin', type=str)
-parser.add_argument("-e", "--epoch", default=EPOCHS, type=int)
+parser.add_argument("-e", "--epochs", default=EPOCHS, type=int)
 parser.add_argument("-b", "--batch_size", default=BATCH_SIZE, type=int)
+parser.add_argument("-m", "--mode", default='official', type=str)
 args = parser.parse_args()
 
 EPOCHS = args.epochs
 BATCH_SIZE = args.batch_size
 VERSION = args.version
+MODE = args.mode
+dict_hyper = {"v": VERSION, "e": EPOCHS, "b": BATCH_SIZE}
 
 def preprocessing():
     train_X, train_y = read_pixel_data(part='train')
@@ -26,9 +29,14 @@ def preprocessing():
     train_X, val_X = train_X / float(255), val_X / float(255)
     train_X -= np.mean(train_X)
     val_X -= np.mean(val_X)
-    train_y = one_hot_encoding(train_y)
-    val_y = one_hot_encoding(val_y)
+    train_y = one_hot_encoding(train_y, 50)
+    val_y = one_hot_encoding(val_y, 50)
     return (train_X, train_y), (val_X, val_y)
+
+def test_mode(train_X, train_y):
+    train_X, train_y = union_shuffle(train_X, train_y)
+    train_X, train_y = train_X[:10000], train_y[:10000]
+    return train_X, train_y
 
 def train_loop(model, train_X, train_y, val_X, val_y, loss_fn, optim):
     ls_loss = []
@@ -57,7 +65,7 @@ def train_loop(model, train_X, train_y, val_X, val_y, loss_fn, optim):
 
                 if val_loss < best_val_loss:
                     best_val_loss = val_loss
-                    save_model(model)
+                    save_model(model, dict_hyper)
 
         train_loss /= batch_cnt
         train_acc /= batch_cnt
@@ -65,42 +73,25 @@ def train_loop(model, train_X, train_y, val_X, val_y, loss_fn, optim):
     return ls_loss
 
 def main():
+    global VERSION, MODE, EPOCHS, BATCH_SIZE, LEARNING_RATE
     s_time = time.time()
+    
     (train_X, train_y), (val_X, val_y) = preprocessing()
     if VERSION == 'improved':
         model = LeNet5Imp()
     elif VERSION == 'origin':
         model = LeNet5()
-    optim = SGDMomentum(model.get_params(), lr=1e-3, momentum=0.80, reg=0.00003)
+
+    if MODE == "test":
+        train_X, train_y = test_mode(train_X, train_y)
+        VERSION = VERSION + '_test'
+    
+    optim = SGDMomentum(model.get_params(), lr=LEARNING_RATE, momentum=0.80, reg=0.00003)
     loss_fn = CrossEntropyLoss()
     ls_loss = train_loop(model, train_X, train_y, val_X, val_y, loss_fn, optim)
 
-    dict_hyper = {"v": VERSION, "e": EPOCHS, "b": BATCH_SIZE}
     save_loss(ls_loss, dict_hyper)
-    save_model(model, dict_hyper)
-
     print(f'total spent: {int(time.time() - s_time)} secs.')
-    # time_start = time.time()
-
-    # train_X = train_X[:BATCH_SIZE]
-    # train_y = train_y[:BATCH_SIZE]
-    
-    # y_pred = model.forward(train_X)
-    # print(f'forward used: {time.time() - time_start}')
-    # loss, dout = loss_fn.get(y_pred, train_y)
-    # model.backward(dout)
-    # optim.step()
-
-    # time_end = time.time()
-    # print(f'one batch spend {round(time_end - time_start, 2)}')
-def test():
-    conv1 = Conv(1, 6, 5)
-    np_ar1 = np.arange(98).reshape(2, 1, 7, 7)
-    print('ar1: ', np_ar1)
-
-    np_ar2 = conv1._forward(np_ar1)
-    # print('ar2: ', np_ar2)
 
 if __name__ == '__main__':
-    # test()
     main()
