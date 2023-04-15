@@ -45,13 +45,13 @@ def one_hot_encoding(y):
     y_one[np.arange(y.size), y] = 1
     return y_one
 
-def save_loss(ls_loss):
+def save_loss(ls_loss, dict_hyper:dict):
     pd.DataFrame(ls_loss, columns=['train_loss', 'train_acc', 'val_loss', 'val_acc'])\
-        .to_csv('output/lenet_origin_result.csv', index=False)
+        .to_csv(f'output/lenet_{dict_hyper["v"]}_e{dict_hyper["e"]}_b{dict_hyper["b"]}.csv', index=False)
 
-def save_model(model):
+def save_model(model, dict_hyper:dict):
     weights = model.get_params()
-    with open("output/best_weights.pkl","wb") as f:
+    with open(f"output/lenet_{dict_hyper['v']}_e{dict_hyper['e']}_b{dict_hyper['b']}_weights.pkl","wb") as f:
         pickle.dump(weights, f)
 
 # above by myself

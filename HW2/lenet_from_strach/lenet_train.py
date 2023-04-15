@@ -1,14 +1,24 @@
+import time
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import seaborn as sns
-import time
-
+from argparse import ArgumentParser
 
 from config import *
 from model_layer import *
 from toolbox import *
+
+parser = ArgumentParser()
+parser.add_argument("-v", "--version", default='origin', type=str)
+parser.add_argument("-e", "--epoch", default=EPOCHS, type=int)
+parser.add_argument("-b", "--batch_size", default=BATCH_SIZE, type=int)
+args = parser.parse_args()
+
+EPOCHS = args.epochs
+BATCH_SIZE = args.batch_size
+VERSION = args.version
 
 def preprocessing():
     train_X, train_y = read_pixel_data(part='train')
@@ -44,9 +54,11 @@ def train_loop(model, train_X, train_y, val_X, val_y, loss_fn, optim):
                 val_loss, dout = loss_fn.get(val_y_pred, val_y)
                 val_acc = (val_y_pred.argmax(axis=1) == val_y.argmax(axis=1)).sum() / val_y.shape[0]
                 bar.set_postfix(train_loss=train_loss/batch_cnt, train_acc=train_acc/batch_cnt, val_loss=val_loss, val_acc=val_acc)
+
                 if val_loss < best_val_loss:
                     best_val_loss = val_loss
                     save_model(model)
+
         train_loss /= batch_cnt
         train_acc /= batch_cnt
         ls_loss.append([train_loss, train_acc, val_loss, val_acc])
@@ -55,14 +67,19 @@ def train_loop(model, train_X, train_y, val_X, val_y, loss_fn, optim):
 def main():
     s_time = time.time()
     (train_X, train_y), (val_X, val_y) = preprocessing()
-    model = LeNet5()
+    if VERSION == 'improved':
+        model = LeNet5Imp()
+    elif VERSION == 'origin':
+        model = LeNet5()
     optim = SGDMomentum(model.get_params(), lr=1e-3, momentum=0.80, reg=0.00003)
     loss_fn = CrossEntropyLoss()
     ls_loss = train_loop(model, train_X, train_y, val_X, val_y, loss_fn, optim)
-    save_loss(ls_loss)
-    save_model(model)
 
-    print(f'total spent: {round(time.time() - s_time, 1)}')
+    dict_hyper = {"v": VERSION, "e": EPOCHS, "b": BATCH_SIZE}
+    save_loss(ls_loss, dict_hyper)
+    save_model(model, dict_hyper)
+
+    print(f'total spent: {int(time.time() - s_time)} secs.')
     # time_start = time.time()
 
     # train_X = train_X[:BATCH_SIZE]
