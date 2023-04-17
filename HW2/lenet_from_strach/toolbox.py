@@ -46,11 +46,11 @@ def one_hot_encoding(y, class_num):
 
 def save_loss(ls_loss, dict_hyper:dict):
     pd.DataFrame(ls_loss, columns=['train_loss', 'train_acc', 'val_loss', 'val_acc'])\
-        .to_csv(f'output/lenet_{dict_hyper["v"]}_e{dict_hyper["e"]}_b{dict_hyper["b"]}.csv', index=False)
+        .to_csv(f'output/lenet_{dict_hyper["v"]}_e{dict_hyper["e"]}_b{dict_hyper["b"]}_lr{dict_hyper["lr"]}.csv', index=False)
 
 def save_model(model, dict_hyper:dict):
     weights = model.get_params()
-    with open(f"model_weights/lenet_{dict_hyper['v']}_e{dict_hyper['e']}_b{dict_hyper['b']}_weights.pkl","wb") as f:
+    with open(f"model_weights/lenet_{dict_hyper['v']}_e{dict_hyper['e']}_b{dict_hyper['b']}_lr{dict_hyper['lr']}_weights.pkl","wb") as f:
         pickle.dump(weights, f)
 
 def draw_loss_n_save(ls_loss, dict_hyper):
@@ -58,7 +58,7 @@ def draw_loss_n_save(ls_loss, dict_hyper):
     epochs = list(range(1, len(train_loss) + 1) )
     fig, ax = plt.subplots(2, 1, figsize=(10, 6))
 
-    fig.suptitle(f"{dict_hyper['v']} lenet e{dict_hyper['e']} b{dict_hyper['b']}")
+    fig.suptitle(f"{dict_hyper['v'].capitalize()} LeNet Epoch{dict_hyper['e']} BatchSize{dict_hyper['b']} LR{dict_hyper['lr']}")
     ax[0].plot(epochs, train_loss, label='train_loss')
     ax[0].plot(epochs, val_loss, label='val_loss')
     ax[0].set_xticks(epochs)

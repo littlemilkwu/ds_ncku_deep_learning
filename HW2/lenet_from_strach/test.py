@@ -2,7 +2,8 @@ from toolbox import *
 dict_hyper = {
     "v": 'origin',
     'e': 10,
-    'b': 128
+    'b': 128,
+    'lr': 0.01,
 }
 ls_loss = [
     [3.912035337, 0.020116397, 3.911873081, 0.02],

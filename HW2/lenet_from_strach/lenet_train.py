@@ -14,14 +14,16 @@ parser = ArgumentParser()
 parser.add_argument("-v", "--version", default='origin', type=str)
 parser.add_argument("-e", "--epochs", default=EPOCHS, type=int)
 parser.add_argument("-b", "--batch_size", default=BATCH_SIZE, type=int)
+parser.add_argument("-lr", "--learning_rate", default=LEARNING_RATE, type=float)
 parser.add_argument("-m", "--mode", default='official', type=str)
 args = parser.parse_args()
 
 EPOCHS = args.epochs
 BATCH_SIZE = args.batch_size
+LEARNING_RATE = args.learning_rate
 VERSION = args.version
 MODE = args.mode
-dict_hyper = {"v": VERSION, "e": EPOCHS, "b": BATCH_SIZE}
+dict_hyper = {"v": VERSION, "e": EPOCHS, "b": BATCH_SIZE, 'lr': LEARNING_RATE}
 
 def preprocessing():
     train_X, train_y = read_pixel_data(part='train')
@@ -75,7 +77,7 @@ def train_loop(model, train_X, train_y, val_X, val_y, loss_fn, optim):
 def main():
     global VERSION, MODE, EPOCHS, BATCH_SIZE, LEARNING_RATE
     s_time = time.time()
-    
+
     (train_X, train_y), (val_X, val_y) = preprocessing()
     if VERSION == 'improved':
         model = LeNet5Imp()
@@ -84,8 +86,17 @@ def main():
 
     if MODE == "test":
         train_X, train_y = test_mode(train_X, train_y)
-        VERSION = VERSION + '_test'
-    
+        dict_hyper['v'] = 'test_' + dict_hyper['v']
+
+    print(f"#"*30)
+    print(f"{'VERSION':<10}: {VERSION}")
+    print(f"{'MODE':<10}: {MODE}")
+    print(f"{'EPOCHS':<10}: {EPOCHS}")
+    print(f"{'BATCH SIZE':<10}: {BATCH_SIZE}")
+    print(f"{'LR':<10}: {LEARNING_RATE}")
+    print(f"{'TRAIN NUM':<10}: {train_X.shape[0]}")
+    print(f"#"*30)
+
     optim = SGDMomentum(model.get_params(), lr=LEARNING_RATE, momentum=0.80, reg=0.00003)
     loss_fn = CrossEntropyLoss()
     ls_loss = train_loop(model, train_X, train_y, val_X, val_y, loss_fn, optim)
