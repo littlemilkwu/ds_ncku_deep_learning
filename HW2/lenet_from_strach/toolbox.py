@@ -55,6 +55,7 @@ def save_model(model, dict_hyper:dict):
 
 def draw_loss_n_save(ls_loss, dict_hyper):
     train_loss, train_acc, val_loss, val_acc = zip(*ls_loss)
+    val_loss = np.array(val_loss)
     epochs = list(range(1, len(train_loss) + 1) )
     fig, ax = plt.subplots(2, 1, figsize=(10, 6))
 
@@ -63,12 +64,15 @@ def draw_loss_n_save(ls_loss, dict_hyper):
     ax[0].plot(epochs, val_loss, label='val_loss')
     ax[0].set_xticks(epochs)
     ax[0].legend()
+    val_min_epoch = val_loss.argmin() + 1
+    ax[0].axvline(x=val_min_epoch, linestyle='dashed', color='black')
 
     ax[1].plot(epochs, train_acc, label='train_acc')
     ax[1].plot(epochs, val_acc, label='val_acc')
     ax[1].set_xticks(epochs)
     ax[1].legend()
     ax[1].set_xlabel('Epochs')
+    ax[1].axvline(x=val_min_epoch, linestyle='dashed', color='black')
     plt.tight_layout()
     fig.savefig('test.png')
 

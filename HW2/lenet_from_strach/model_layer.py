@@ -1,7 +1,7 @@
 import numpy as np
 from abc import ABCMeta, abstractmethod
 import pickle
-adjust = 1
+adjust = 10
 class FC():
     """
     Fully connected layer
@@ -67,8 +67,8 @@ class Sigmoid():
 
     def _backward(self, dout):
         X = self.cache
-        X = self._forward(X)
-        dX = dout*X*(1-X)
+        sig = self._forward(X) # 新增此行
+        dX = dout * sig * (1 - sig)
         return dX
 
 class SigmoidImp():
@@ -85,19 +85,13 @@ class SigmoidImp():
     
     def origin_sig(self, X):
         X = np.float128(X)
-        out = np.zeros(shape=X.shape, dtype=np.float128)
-        
-        inx = X > 0
-        out[inx] = 1 / (1 + np.exp(-X[inx]))
-        out[~inx] = np.exp(X[~inx]) / (1+np.exp(X[~inx]))
+        out = 1 / (1 + np.exp(-X))
         return out
 
     def _backward(self, dout):
         X = self.cache
         # dX = dout * (self.origin_sig(X) + (X*(self.origin_sig(X))*(1-self.origin_sig(X))))
         dX = dout * (self.origin_sig(X) + (self._forward(X)*self.origin_sig(-X)))
-
-        # dout*(self.sigmoid._forward(X) + self.out * self.sigmoid._forward(-X))
         return dX
 
 class tanh():
@@ -315,8 +309,9 @@ class CrossEntropyLoss():
     def get(self, Y_pred, Y_true):
         N = Y_pred.shape[0]
 
+        # double softmax issue
         # softmax = Softmax()
-        # prob = softmax._forward(Y_pred) # double softmax
+        # prob = softmax._forward(Y_pred) 
         
         prob = Y_pred
         loss = NLLLoss(prob, Y_true)
@@ -493,76 +488,17 @@ class LeNet5Imp(Net):
     
     # LeNet5 Improved
     
-    # def __init__(self):
-    #     self.conv1_1 = Conv(3, 6, F=3)
-    #     self.Sig1_1 = Sigmoid()
-    #     self.conv1_2 = Conv(6, 6, F=3)
-    #     self.Sig1_2 = Sigmoid()
-    #     self.pool1 = MaxPool(2, 2)
-    #     self.conv2 = Conv(6, 16, F=3)
-    #     self.Sig2 = Sigmoid()
-    #     self.pool2 = MaxPool(2, 2)
-
-    #     self.FC1 = FC(16 * 6 * 6, 120)
-    #     self.Sig3 = Sigmoid()
-    #     self.FC2 = FC(120, 84)
-    #     self.Sig4 = Sigmoid()
-    #     self.FC3 = FC(84, 50)
-    #     self.Softmax = Softmax()
-
-    #     self.p2_shape = None
-
-    # def forward(self, X):
-    #     h1_1 = self.conv1_1._forward(X)
-    #     a1_1 = self.Sig1_1._forward(h1_1)
-    #     h1_2 = self.conv1_2._forward(a1_1)
-    #     a1_2 = self.Sig1_2._forward(h1_2)
-
-    #     p1 = self.pool1._forward(a1_2)
-    #     h2 = self.conv2._forward(p1)
-    #     a2 = self.Sig2._forward(h2)
-    #     p2 = self.pool2._forward(a2)
-    #     self.p2_shape = p2.shape
-
-    #     fl = p2.reshape(X.shape[0], -1) # Flatten
-    #     h3 = self.FC1._forward(fl)
-    #     a3 = self.Sig3._forward(h3)
-    #     h4 = self.FC2._forward(a3)
-    #     a5 = self.Sig4._forward(h4)
-    #     h5 = self.FC3._forward(a5)
-    #     a5 = self.Softmax._forward(h5)
-    #     return a5
-
-    # def backward(self, dout):
-    #     #dout = self.Softmax._backward(dout)
-    #     dout = self.FC3._backward(dout)
-    #     dout = self.Sig4._backward(dout)
-    #     dout = self.FC2._backward(dout)
-    #     dout = self.Sig3._backward(dout)
-    #     dout = self.FC1._backward(dout)
-    #     dout = dout.reshape(self.p2_shape) # reshape
-    #     dout = self.pool2._backward(dout)
-    #     dout = self.Sig2._backward(dout)
-    #     dout = self.conv2._backward(dout)
-    #     dout = self.pool1._backward(dout)
-    #     dout = self.Sig1_2._backward(dout)
-    #     dout = self.conv1_2._backward(dout)
-    #     dout = self.Sig1_1._backward(dout)
-    #     dout = self.conv1_1._backward(dout)
-
-    # def get_params(self):
-    #     return [self.conv1_1.W, self.conv1_1.b, self.conv1_2.W, self.conv1_2.b, self.conv2.W, self.conv2.b, self.FC1.W, self.FC1.b, self.FC2.W, self.FC2.b, self.FC3.W, self.FC3.b]
-
-    # def set_params(self, params):
-    #     [self.conv1_1.W, self.conv1_1.b, self.conv1_2.W, self.conv1_2.b, self.conv2.W, self.conv2.b, self.FC1.W, self.FC1.b, self.FC2.W, self.FC2.b, self.FC3.W, self.FC3.b] = params
     def __init__(self):
-        self.conv1 = Conv(3, 6, F=5)
-        self.Sig1 = SigmoidImp()
+        self.conv1_1 = Conv(3, 6, F=3)
+        self.Sig1_1 = SigmoidImp()
+        self.conv1_2 = Conv(6, 6, F=3)
+        self.Sig1_2 = SigmoidImp()
         self.pool1 = MaxPool(2, 2)
-        self.conv2 = Conv(6, 16, F=5)
+        self.conv2 = Conv(6, 16, F=3)
         self.Sig2 = SigmoidImp()
         self.pool2 = MaxPool(2, 2)
-        self.FC1 = FC(16 * 5 * 5, 120)
+
+        self.FC1 = FC(16 * 6 * 6, 120)
         self.Sig3 = SigmoidImp()
         self.FC2 = FC(120, 84)
         self.Sig4 = SigmoidImp()
@@ -572,13 +508,17 @@ class LeNet5Imp(Net):
         self.p2_shape = None
 
     def forward(self, X):
-        h1 = self.conv1._forward(X)
-        a1 = self.Sig1._forward(h1)
-        p1 = self.pool1._forward(a1)
+        h1_1 = self.conv1_1._forward(X)
+        a1_1 = self.Sig1_1._forward(h1_1)
+        h1_2 = self.conv1_2._forward(a1_1)
+        a1_2 = self.Sig1_2._forward(h1_2)
+
+        p1 = self.pool1._forward(a1_2)
         h2 = self.conv2._forward(p1)
         a2 = self.Sig2._forward(h2)
         p2 = self.pool2._forward(a2)
         self.p2_shape = p2.shape
+
         fl = p2.reshape(X.shape[0], -1) # Flatten
         h3 = self.FC1._forward(fl)
         a3 = self.Sig3._forward(h3)
@@ -600,14 +540,70 @@ class LeNet5Imp(Net):
         dout = self.Sig2._backward(dout)
         dout = self.conv2._backward(dout)
         dout = self.pool1._backward(dout)
-        dout = self.Sig1._backward(dout)
-        dout = self.conv1._backward(dout)
+        dout = self.Sig1_2._backward(dout)
+        dout = self.conv1_2._backward(dout)
+        dout = self.Sig1_1._backward(dout)
+        dout = self.conv1_1._backward(dout)
 
     def get_params(self):
-        return [self.conv1.W, self.conv1.b, self.conv2.W, self.conv2.b, self.FC1.W, self.FC1.b, self.FC2.W, self.FC2.b, self.FC3.W, self.FC3.b]
+        return [self.conv1_1.W, self.conv1_1.b, self.conv1_2.W, self.conv1_2.b, self.conv2.W, self.conv2.b, self.FC1.W, self.FC1.b, self.FC2.W, self.FC2.b, self.FC3.W, self.FC3.b]
 
     def set_params(self, params):
-        [self.conv1.W, self.conv1.b, self.conv2.W, self.conv2.b, self.FC1.W, self.FC1.b, self.FC2.W, self.FC2.b, self.FC3.W, self.FC3.b] = params
+        [self.conv1_1.W, self.conv1_1.b, self.conv1_2.W, self.conv1_2.b, self.conv2.W, self.conv2.b, self.FC1.W, self.FC1.b, self.FC2.W, self.FC2.b, self.FC3.W, self.FC3.b] = params
+    
+    # def __init__(self):
+    #     self.conv1 = Conv(3, 6, F=5)
+    #     self.Sig1 = SigmoidImp()
+    #     self.pool1 = MaxPool(2, 2)
+    #     self.conv2 = Conv(6, 16, F=5)
+    #     self.Sig2 = SigmoidImp()
+    #     self.pool2 = MaxPool(2, 2)
+    #     self.FC1 = FC(16 * 5 * 5, 120)
+    #     self.Sig3 = SigmoidImp()
+    #     self.FC2 = FC(120, 84)
+    #     self.Sig4 = SigmoidImp()
+    #     self.FC3 = FC(84, 50)
+    #     self.Softmax = Softmax()
+
+    #     self.p2_shape = None
+
+    # def forward(self, X):
+    #     h1 = self.conv1._forward(X)
+    #     a1 = self.Sig1._forward(h1)
+    #     p1 = self.pool1._forward(a1)
+    #     h2 = self.conv2._forward(p1)
+    #     a2 = self.Sig2._forward(h2)
+    #     p2 = self.pool2._forward(a2)
+    #     self.p2_shape = p2.shape
+    #     fl = p2.reshape(X.shape[0], -1) # Flatten
+    #     h3 = self.FC1._forward(fl)
+    #     a3 = self.Sig3._forward(h3)
+    #     h4 = self.FC2._forward(a3)
+    #     a5 = self.Sig4._forward(h4)
+    #     h5 = self.FC3._forward(a5)
+    #     a5 = self.Softmax._forward(h5)
+    #     return a5
+
+    # def backward(self, dout):
+    #     #dout = self.Softmax._backward(dout)
+    #     dout = self.FC3._backward(dout)
+    #     dout = self.Sig4._backward(dout)
+    #     dout = self.FC2._backward(dout)
+    #     dout = self.Sig3._backward(dout)
+    #     dout = self.FC1._backward(dout)
+    #     dout = dout.reshape(self.p2_shape) # reshape
+    #     dout = self.pool2._backward(dout)
+    #     dout = self.Sig2._backward(dout)
+    #     dout = self.conv2._backward(dout)
+    #     dout = self.pool1._backward(dout)
+    #     dout = self.Sig1._backward(dout)
+    #     dout = self.conv1._backward(dout)
+
+    # def get_params(self):
+    #     return [self.conv1.W, self.conv1.b, self.conv2.W, self.conv2.b, self.FC1.W, self.FC1.b, self.FC2.W, self.FC2.b, self.FC3.W, self.FC3.b]
+
+    # def set_params(self, params):
+    #     [self.conv1.W, self.conv1.b, self.conv2.W, self.conv2.b, self.FC1.W, self.FC1.b, self.FC2.W, self.FC2.b, self.FC3.W, self.FC3.b] = params
 
 
 

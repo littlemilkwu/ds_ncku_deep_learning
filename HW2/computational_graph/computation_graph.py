@@ -147,7 +147,7 @@ def train_loop(model, train_X, train_y, val_X, val_y, loss_fn):
             model.step(LEARNING_RATE)
             
             
-            print(model.h1.value[:10, :3])
+            # print(model.h1.value[:10, :3])
             
             if batch_i == batch_cnt - 1:
                 # validate
@@ -160,16 +160,25 @@ def train_loop(model, train_X, train_y, val_X, val_y, loss_fn):
         ls_loss.append([epoch_loss, epoch_acc, val_loss, val_acc])
     return ls_loss
 
+def test(model, test_X, test_y):
+    y_pred = model(test_X)
+    acc = (y_pred.value.argmax(axis=1) == test_y.argmax(axis=1)).sum() / test_X.value.shape[0]
+    return acc
+
 def main():
     # train_X, train_y = read_pixel_data(part='val')
     train_X, train_y = read_img_feature_data(part='val')
     val_X, val_y = read_img_feature_data(part='val')
-
+    test_X, test_y = read_img_feature_data(part='test')
+    
     # preprocessing
     train_X, train_y = union_shuffle(train_X, train_y)
-    train_y = one_hot_encoding(train_y)
-    val_y = one_hot_encoding(val_y)
+    train_y = one_hot_encoding(train_y, 50)
+    val_y = one_hot_encoding(val_y, 50)
+    test_y = one_hot_encoding(test_y, 50)
+
     val_X = Tensor(val_X)
+    test_X = Tensor(test_X)
 
     # build model
     model = ComGraph()
@@ -178,6 +187,9 @@ def main():
 
     pd.DataFrame(ls_loss, columns=['train_loss', 'train_acc', 'val_loss', 'val_acc'])\
         .to_csv("output/ComGraph_result.csv", index=False)
+    
+    test_acc = test(model, test_X, test_y)
+    print(f'Test Accuracy: {round(test_acc, 4)}')
     return 
 
 

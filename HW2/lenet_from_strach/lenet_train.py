@@ -37,7 +37,7 @@ def preprocessing():
 
 def test_mode(train_X, train_y):
     train_X, train_y = union_shuffle(train_X, train_y)
-    train_X, train_y = train_X[:10000], train_y[:10000]
+    train_X, train_y = train_X[:4000], train_y[:4000]
     return train_X, train_y
 
 def train_loop(model, train_X, train_y, val_X, val_y, loss_fn, optim):
@@ -65,13 +65,14 @@ def train_loop(model, train_X, train_y, val_X, val_y, loss_fn, optim):
                 val_acc = (val_y_pred.argmax(axis=1) == val_y.argmax(axis=1)).sum() / val_y.shape[0]
                 bar.set_postfix(train_loss=train_loss/batch_cnt, train_acc=train_acc/batch_cnt, val_loss=val_loss, val_acc=val_acc)
 
-                if val_loss < best_val_loss:
-                    best_val_loss = val_loss
-                    save_model(model, dict_hyper)
-
         train_loss /= batch_cnt
         train_acc /= batch_cnt
         ls_loss.append([train_loss, train_acc, val_loss, val_acc])
+        save_loss(ls_loss, dict_hyper)
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            save_model(model, dict_hyper)
+        print('train loss: ', round(train_loss, 6))
     return ls_loss
 
 def main():
@@ -101,7 +102,6 @@ def main():
     loss_fn = CrossEntropyLoss()
     ls_loss = train_loop(model, train_X, train_y, val_X, val_y, loss_fn, optim)
 
-    save_loss(ls_loss, dict_hyper)
     print(f'total spent: {int(time.time() - s_time)} secs.')
 
 if __name__ == '__main__':

@@ -7,7 +7,7 @@ RS = np.random.RandomState(11)
 # model hyperparameters
 BATCH_SIZE = 450
 LEARNING_RATE = 1e-3
-EPOCHS = 10
+EPOCHS = 300
 
 INPUT_DIM = 1344
 HIDDEN_DIM = 128
