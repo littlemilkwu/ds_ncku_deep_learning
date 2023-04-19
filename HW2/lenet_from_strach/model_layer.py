@@ -99,13 +99,13 @@ class tanh():
     tanh activation layer
     """
     def __init__(self):
-        self.cache = X
+        self.cache = None
 
     def _forward(self, X):
         self.cache = X
         return np.tanh(X)
 
-    def _backward(self, X):
+    def _backward(self, dout):
         X = self.cache
         dX = dout*(1 - np.tanh(X)**2)
         return dX
