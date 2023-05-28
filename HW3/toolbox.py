@@ -76,7 +76,7 @@ def draw_loss_n_save(ls_loss, dict_hyper):
     ax[1].set_xlabel('Epochs')
     ax[1].axvline(x=val_min_epoch, linestyle='dashed', color='black')
     plt.tight_layout()
-    fig.savefig(f"{dict_hyper['v'].capitalize()} LeNet Epoch{dict_hyper['e']} BatchSize{dict_hyper['b']} LR{dict_hyper['lr']}.png")
+    fig.savefig(f"{OUT_PATH}/{dict_hyper['v'].capitalize()} LeNet Epoch{dict_hyper['e']} BatchSize{dict_hyper['b']} LR{dict_hyper['lr']}.png")
 
 # above by myself
 

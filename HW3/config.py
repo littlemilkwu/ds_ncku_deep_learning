@@ -1,6 +1,7 @@
 import numpy as np
 
 DATA_PATH = "../HW1/raw_data"
+OUT_PATH = "./output"
 CPU_USED = 100
 RS = np.random.RandomState(11)
 
@@ -10,4 +11,4 @@ IMG_CHA = 3
 
 BATCH_SIZE = 256
 LEARNING_RATE = 1e-3
-EPOCHS = 150
+EPOCHS = 200
